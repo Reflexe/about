@@ -207,8 +207,9 @@
     <img id="img2" src="" alt="Image 2">
 </div>
 <!-- Hidden input for mobile keyboard -->
-<input id="mobileInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters"
-       style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;z-index:-1;">
+<label for="mobileInput"></label><input id="mobileInput" type="text" inputmode="text" autocomplete="off"
+                                        autocapitalize="characters"
+                                        style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;z-index:-1;">
 <div id="game"></div>
 <audio id="winSound" src="https://www.soundjay.com/human/sounds/applause-8.mp3"></audio>
 
@@ -513,8 +514,9 @@
 
     if (isMobile()) {
         mobileInput.addEventListener("keydown", (e) => handleKey(e.key.toUpperCase()));
+        focusMobileInput();
         // Focus input when board is clicked (for mobile)
-        document.addEventListener("readystatechange", focusMobileInput);
+        document.addEventListener("onclick", focusMobileInput);
     } else {
         document.body.addEventListener("keydown", (e) => handleKey(e.key.toUpperCase()));
     }
