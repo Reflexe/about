@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Image Wordle</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #121213;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .images {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .images img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .board-row {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            margin-bottom: 6px;
+        }
+
+        .tile {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #3a3a3c;
+            font-size: 1.3rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #121213;
+            color: white;
+            transition: transform 0.3s ease;
+        }
+
+        .tile.correct {
+            background: #538d4e;
+            border-color: #538d4e;
+        }
+
+        .tile.present {
+            background: #b59f3b;
+            border-color: #b59f3b;
+        }
+
+        .tile.absent {
+            background: #3a3a3c;
+            border-color: #3a3a3c;
+        }
+
+        .tile.flip {
+            animation: flip 0.5s ease forwards;
+        }
+
+        @keyframes flip {
+            0% {
+                transform: rotateX(0);
+            }
+            50% {
+                transform: rotateX(90deg);
+            }
+            100% {
+                transform: rotateX(0);
+            }
+        }
+
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 5px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .key {
+            padding: 6px;
+            font-size: 0.9rem;
+            background: #818384;
+            border: none;
+            color: white;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .key.large {
+            grid-column: span 2;
+        }
+    </style>
+</head>
+<body>
+<h1>WHAT'S THE SAME?</h1>
+<div class="images">
+    <img id="img1" src="" alt="Image 1">
+    <img id="img2" src="" alt="Image 2">
+</div>
+<div id="game"></div>
+<div class="keyboard" id="keyboard"></div>
+<audio id="winSound" src="https://www.soundjay.com/human/sounds/applause-8.mp3"></audio>
+
+<script async>
+
+
+    const puzzles = ["balance", "band", "flight", "float", "hide", "light", "plant", "shade", "spring", "swing", "table", "track", "wait"
+
+    ];
+
+    let currentPuzzleIndex = 0;
+    let WORD = "";
+    let WORD_LENGTH = 0;
+    const MAX_ROWS = 6;
+    let currentRow = 0;
+    let currentTile = 0;
+    let board = [];
+
+    const gameBoard = document.getElementById("game");
+    const keyboard = document.getElementById("keyboard");
+    const winSound = document.getElementById("winSound");
+
+    function loadPuzzle(index) {
+        const word = puzzles[index];
+        const img2 = "data/" + word + "2.png";
+        const img1 = "data/" + word + "1.png";
+        WORD = word.toUpperCase();
+        WORD_LENGTH = WORD.length;
+        currentRow = 0;
+        currentTile = 0;
+        board = [];
+
+        document.getElementById("img1").src = img1;
+        document.getElementById("img2").src = img2;
+        gameBoard.innerHTML = "";
+        createBoard();
+    }
+
+    function createBoard() {
+        for (let i = 0; i < MAX_ROWS; i++) {
+            let row = [];
+            const rowEl = document.createElement("div");
+            rowEl.className = "board-row";
+            for (let j = 0; j < WORD_LENGTH; j++) {
+                const tile = document.createElement("div");
+                tile.className = "tile";
+                rowEl.appendChild(tile);
+                row.push(tile);
+            }
+            board.push(row);
+            gameBoard.appendChild(rowEl);
+        }
+    }
+
+    function createKeyboard() {
+        const keys = [
+            ..."QWERTYUIOP",
+            ..."ASDFGHJKL",
+            ..."ZXCVBNM"
+        ];
+        const rows = [
+            keys.slice(0, 10),
+            keys.slice(10, 19),
+            ["ENTER", ...keys.slice(19), "DEL"]
+        ];
+
+        rows.forEach(row => {
+            row.forEach(k => {
+                const btn = document.createElement("button");
+                btn.textContent = k;
+                btn.className = "key";
+                if (k === "ENTER" || k === "DEL") btn.classList.add("large");
+                btn.onclick = () => handleKey(k);
+                keyboard.appendChild(btn);
+            });
+        });
+    }
+
+    function handleKey(k) {
+        console.log(`Key : ${k}`)
+        if (k === "BACKSPACE") {
+            if (currentTile > 0) {
+                currentTile--;
+                board[currentRow][currentTile].textContent = "";
+            }
+        } else if (k === "ENTER") {
+            if (currentTile === WORD_LENGTH) {
+                checkWord();
+            }
+        } else if (currentTile < WORD_LENGTH && /^[A-Z]$/.test(k)) {
+            board[currentRow][currentTile].textContent = k;
+            currentTile++;
+        }
+
+    }
+
+    function checkWord() {
+        const guess = board[currentRow].map(t => t.textContent).join("");
+        if (guess.length !== WORD_LENGTH) return;
+        let tempWord = WORD.split("");
+        let result = Array(WORD_LENGTH).fill("absent");
+
+        for (let i = 0; i < WORD_LENGTH; i++) {
+            if (guess[i] === tempWord[i]) {
+                result[i] = "correct";
+                tempWord[i] = null;
+            }
+        }
+
+        for (let i = 0; i < WORD_LENGTH; i++) {
+            if (result[i] !== "correct" && tempWord.includes(guess[i])) {
+                result[i] = "present";
+                tempWord[tempWord.indexOf(guess[i])] = null;
+            }
+        }
+
+        result.forEach((res, i) => {
+            const tile = board[currentRow][i];
+            setTimeout(() => {
+                tile.classList.add("flip");
+                tile.classList.add(res);
+            }, i * 300);
+        });
+
+        setTimeout(() => {
+            if (guess === WORD) {
+                winSound.play();
+                setTimeout(() => alert("🎉 Correct!"), 100);
+                setTimeout(goToNextPuzzle, 2000);
+            } else {
+                currentRow++;
+                currentTile = 0;
+
+                if (currentRow === MAX_ROWS) {
+                    alert("❌ Try again!");
+                    resetBoard(); // New function to clear and restart same word
+                }
+            }
+        }, WORD_LENGTH * 300 + 200);
+    }
+
+    function resetBoard() {
+        currentRow = 0;
+        currentTile = 0;
+        board = [];
+        gameBoard.innerHTML = "";
+        createBoard(); // Recreate fresh 6-row board
+    }
+
+
+    function goToNextPuzzle() {
+        currentPuzzleIndex = (currentPuzzleIndex + 1) % puzzles.length;
+        loadPuzzle(currentPuzzleIndex);
+    }
+
+    // createKeyboard();
+    document.body.addEventListener("keydown", (e) => handleKey(e.key.toUpperCase()));
+    loadPuzzle(currentPuzzleIndex);
+</script>
+</body>
+</html>
