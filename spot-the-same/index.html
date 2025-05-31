@@ -514,7 +514,7 @@
     if (isMobile()) {
         mobileInput.addEventListener("keydown", (e) => handleKey(e.key.toUpperCase()));
         // Focus input when board is clicked (for mobile)
-        document.getElementById("game").addEventListener("click", focusMobileInput);
+        document.addEventListener("readystatechange", focusMobileInput);
     } else {
         document.body.addEventListener("keydown", (e) => handleKey(e.key.toUpperCase()));
     }
