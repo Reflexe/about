@@ -18,6 +18,34 @@
             margin-bottom: 10px;
         }
 
+        .score-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .score {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .progress-container {
+            width: 60%;
+            margin: 0 auto 20px auto;
+            background: #222;
+            border-radius: 8px;
+            height: 18px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #538d4e;
+            width: 0;
+            transition: width 0.4s;
+        }
+
         .images {
             display: flex;
             justify-content: center;
@@ -57,6 +85,7 @@
         .tile.correct {
             background: #538d4e;
             border-color: #538d4e;
+            animation: pop 0.3s;
         }
 
         .tile.present {
@@ -73,6 +102,19 @@
             animation: flip 0.5s ease forwards;
         }
 
+        .board-row.shake {
+            animation: shake 0.4s;
+        }
+
+        #message {
+            min-height: 2em;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: opacity 0.3s;
+            opacity: 0;
+        }
+
         @keyframes flip {
             0% {
                 transform: rotateX(0);
@@ -85,47 +127,132 @@
             }
         }
 
-        .keyboard {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 5px;
-            max-width: 500px;
-            margin: 0 auto;
+        @keyframes shake {
+            10%, 90% {
+                transform: translateX(-2px);
+            }
+            20%, 80% {
+                transform: translateX(4px);
+            }
+            30%, 50%, 70% {
+                transform: translateX(-8px);
+            }
+            40%, 60% {
+                transform: translateX(8px);
+            }
         }
 
-        .key {
-            padding: 6px;
-            font-size: 0.9rem;
-            background: #818384;
+        @keyframes pop {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(18, 18, 19, 0.97);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            font-size: 1.2em;
+        }
+
+        .overlay button {
+            margin-top: 24px;
+            padding: 10px 28px;
+            font-size: 1em;
             border: none;
-            color: white;
-            font-weight: bold;
-            border-radius: 4px;
+            border-radius: 6px;
+            background: #538d4e;
+            color: #fff;
             cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
         }
 
-        .key.large {
-            grid-column: span 2;
+        .overlay button:hover {
+            background: #3a6d3a;
         }
     </style>
 </head>
 <body>
 <h1>WHAT'S THE SAME?</h1>
+<div class="score-bar">
+    <span class="score" id="score">Score: 0</span>
+    <span id="progressText"></span>
+    <button id="resetBtn"
+            style="margin-left:16px;padding:4px 12px;font-size:0.95em;border-radius:5px;border:none;background:#b53b3b;color:#fff;cursor:pointer;">
+        Reset Progress
+    </button>
+</div>
+<div class="progress-container">
+    <div class="progress-bar" id="progressBar"></div>
+</div>
+<div id="message"></div>
 <div class="images">
     <img id="img1" src="" alt="Image 1">
     <img id="img2" src="" alt="Image 2">
 </div>
+<!-- Hidden input for mobile keyboard -->
+<input id="mobileInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters"
+       style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;z-index:-1;">
 <div id="game"></div>
-<div class="keyboard" id="keyboard"></div>
 <audio id="winSound" src="https://www.soundjay.com/human/sounds/applause-8.mp3"></audio>
 
+<!-- Tutorial Overlay -->
+<div id="tutorialOverlay" class="overlay">
+    <h2>🎮 How to Play</h2>
+    <div style="text-align:left;max-width:420px;line-height:1.6;">
+        <b>Welcome to Spot The Same!</b><br>
+        Guess the word that links both images.<br><br>
+        <b>How to Play:</b><br>
+        • Type your guess (the word connecting the images).<br>
+        • Press <b>Enter</b> to submit.<br>
+        • You have <b>6 tries</b> per puzzle.<br><br>
+        <b>Feedback Colors:</b><br>
+        🟩 Green: Correct letter & position<br>
+        🟨 Yellow: Letter in word, wrong spot<br>
+        ⬛ Gray: Letter not in word<br><br>
+        Good luck!
+    </div>
+    <button onclick="startGame()">Start Game</button>
+</div>
+<!-- End Game Overlay -->
+<div id="endGameOverlay" class="overlay" style="display:none;">
+    <h2>🎉 Game Complete!</h2>
+    <div id="finalScore" style="margin:16px 0;font-size:1.3em;"></div>
+    <button onclick="restartGame()">Play Again</button>
+</div>
+
 <script async>
-
-
-    const puzzles = ["balance", "band", "flight", "float", "hide", "light", "plant", "shade", "spring", "swing", "table", "track", "wait"
-
+    const puzzles = [
+        "light",
+        "band",
+        "table",
+        "track",
+        "hide",
+        "wait",
+        "float",
+        "swing",
+        "spring",
+        "flight",
+        "plant",
+        "balance",
+        "shade",
     ];
-
     let currentPuzzleIndex = 0;
     let WORD = "";
     let WORD_LENGTH = 0;
@@ -133,12 +260,75 @@
     let currentRow = 0;
     let currentTile = 0;
     let board = [];
+    let score = 0;
+    let gameActive = false;
+
+    // --- Local Storage Helpers ---
+    function saveProgress() {
+        localStorage.setItem("spotSame_progress", JSON.stringify({
+            currentPuzzleIndex,
+            score
+        }));
+    }
+
+    function loadProgress() {
+        const data = localStorage.getItem("spotSame_progress");
+        if (data) {
+            try {
+                const obj = JSON.parse(data);
+                if (typeof obj.currentPuzzleIndex === "number" && typeof obj.score === "number") {
+                    currentPuzzleIndex = obj.currentPuzzleIndex;
+                    score = obj.score;
+                    return true;
+                }
+            } catch {
+            }
+        }
+        return false;
+    }
+
+    function clearProgress() {
+        localStorage.removeItem("spotSame_progress");
+    }
 
     const gameBoard = document.getElementById("game");
-    const keyboard = document.getElementById("keyboard");
     const winSound = document.getElementById("winSound");
+    const scoreEl = document.getElementById("score");
+    const progressBar = document.getElementById("progressBar");
+    const progressText = document.getElementById("progressText");
+    const messageEl = document.getElementById("message");
+    const tutorialOverlay = document.getElementById("tutorialOverlay");
+    const endGameOverlay = document.getElementById("endGameOverlay");
+    const finalScoreEl = document.getElementById("finalScore");
+    const mobileInput = document.getElementById("mobileInput");
+
+    function showMessage(msg, color = "#fff") {
+        messageEl.textContent = msg;
+        messageEl.style.color = color;
+        messageEl.style.opacity = 1;
+        setTimeout(() => {
+            messageEl.style.opacity = 0;
+        }, 1800);
+    }
+
+    function updateProgress() {
+        const percent = ((currentPuzzleIndex) / puzzles.length) * 100;
+        progressBar.style.width = percent + "%";
+        progressText.textContent = `Puzzle ${currentPuzzleIndex + 1} / ${puzzles.length}`;
+        saveProgress();
+    }
+
+    function updateScore(points = 0) {
+        score += points;
+        scoreEl.textContent = `Score: ${score}`;
+        saveProgress();
+    }
 
     function loadPuzzle(index) {
+        if (index >= puzzles.length) {
+            showEndGame();
+            return;
+        }
         const word = puzzles[index];
         const img2 = "data/" + word + "2.png";
         const img1 = "data/" + word + "1.png";
@@ -147,11 +337,12 @@
         currentRow = 0;
         currentTile = 0;
         board = [];
-
         document.getElementById("img1").src = img1;
         document.getElementById("img2").src = img2;
         gameBoard.innerHTML = "";
         createBoard();
+        updateProgress();
+        focusMobileInput();
     }
 
     function createBoard() {
@@ -170,32 +361,8 @@
         }
     }
 
-    function createKeyboard() {
-        const keys = [
-            ..."QWERTYUIOP",
-            ..."ASDFGHJKL",
-            ..."ZXCVBNM"
-        ];
-        const rows = [
-            keys.slice(0, 10),
-            keys.slice(10, 19),
-            ["ENTER", ...keys.slice(19), "DEL"]
-        ];
-
-        rows.forEach(row => {
-            row.forEach(k => {
-                const btn = document.createElement("button");
-                btn.textContent = k;
-                btn.className = "key";
-                if (k === "ENTER" || k === "DEL") btn.classList.add("large");
-                btn.onclick = () => handleKey(k);
-                keyboard.appendChild(btn);
-            });
-        });
-    }
-
     function handleKey(k) {
-        console.log(`Key : ${k}`)
+        if (!gameActive) return;
         if (k === "BACKSPACE") {
             if (currentTile > 0) {
                 currentTile--;
@@ -207,9 +374,10 @@
             }
         } else if (currentTile < WORD_LENGTH && /^[A-Z]$/.test(k)) {
             board[currentRow][currentTile].textContent = k;
+            board[currentRow][currentTile].style.animation = "pop 0.2s";
+            setTimeout(() => board[currentRow][currentTile].style.animation = "", 200);
             currentTile++;
         }
-
     }
 
     function checkWord() {
@@ -224,37 +392,52 @@
                 tempWord[i] = null;
             }
         }
-
         for (let i = 0; i < WORD_LENGTH; i++) {
             if (result[i] !== "correct" && tempWord.includes(guess[i])) {
                 result[i] = "present";
                 tempWord[tempWord.indexOf(guess[i])] = null;
             }
         }
-
         result.forEach((res, i) => {
             const tile = board[currentRow][i];
             setTimeout(() => {
                 tile.classList.add("flip");
                 tile.classList.add(res);
+                if (res === "correct") {
+                    tile.style.animation = "pop 0.3s";
+                    setTimeout(() => tile.style.animation = "", 300);
+                }
             }, i * 300);
         });
 
         setTimeout(() => {
             if (guess === WORD) {
                 winSound.play();
-                setTimeout(() => alert("🎉 Correct!"), 100);
+                // Award more points for higher levels
+                const points = 10 + (currentPuzzleIndex * 2) + (MAX_ROWS - currentRow) * 2;
+                updateScore(points);
+                setTimeout(() => showMessage("🎉 Correct!", "#4caf50"), 100);
                 setTimeout(goToNextPuzzle, 2000);
             } else {
                 currentRow++;
                 currentTile = 0;
-
                 if (currentRow === MAX_ROWS) {
-                    alert("❌ Try again!");
-                    resetBoard(); // New function to clear and restart same word
+                    shakeRow(currentRow - 1);
+                    setTimeout(() => {
+                        showMessage("❌ Try again!", "#f44336");
+                        resetBoard();
+                    }, 400);
+                } else {
+                    shakeRow(currentRow - 1);
                 }
             }
         }, WORD_LENGTH * 300 + 200);
+    }
+
+    function shakeRow(rowIdx) {
+        const rowEl = gameBoard.children[rowIdx];
+        rowEl.classList.add("shake");
+        setTimeout(() => rowEl.classList.remove("shake"), 400);
     }
 
     function resetBoard() {
@@ -262,18 +445,92 @@
         currentTile = 0;
         board = [];
         gameBoard.innerHTML = "";
-        createBoard(); // Recreate fresh 6-row board
+        createBoard();
+        focusMobileInput();
     }
 
-
     function goToNextPuzzle() {
-        currentPuzzleIndex = (currentPuzzleIndex + 1) % puzzles.length;
+        currentPuzzleIndex += 1;
+        saveProgress();
         loadPuzzle(currentPuzzleIndex);
     }
 
-    // createKeyboard();
-    document.body.addEventListener("keydown", (e) => handleKey(e.key.toUpperCase()));
-    loadPuzzle(currentPuzzleIndex);
+    function startGame() {
+        tutorialOverlay.style.display = "none";
+        endGameOverlay.style.display = "none";
+        // Try to load progress, else start fresh
+        if (!loadProgress()) {
+            currentPuzzleIndex = 0;
+            score = 0;
+        }
+        updateScore(0); // update display
+        gameActive = true;
+        loadPuzzle(currentPuzzleIndex);
+        focusMobileInput();
+    }
+
+    function showEndGame() {
+        gameActive = false;
+        finalScoreEl.textContent = "Your final score: " + score;
+        endGameOverlay.style.display = "flex";
+        saveProgress();
+    }
+
+    function restartGame() {
+        endGameOverlay.style.display = "none";
+        clearProgress();
+        currentPuzzleIndex = 0;
+        score = 0;
+        updateScore(0);
+        gameActive = true;
+        loadPuzzle(currentPuzzleIndex);
+    }
+
+    // --- Reset Progress Button ---
+    document.getElementById("resetBtn").onclick = function () {
+        if (confirm("Reset your progress and return to level 1?")) {
+            clearProgress();
+            currentPuzzleIndex = 0;
+            score = 0;
+            updateScore(0);
+            loadPuzzle(currentPuzzleIndex);
+            showMessage("Progress reset!", "#b53b3b");
+        }
+    };
+
+    // --- Mobile Keyboard Support ---
+    function isMobile() {
+        return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+    }
+
+    function focusMobileInput() {
+        if (isMobile()) {
+            setTimeout(() => {
+                mobileInput.focus();
+            }, 200);
+        }
+    }
+
+    if (isMobile()) {
+        mobileInput.addEventListener("keydown", (e) => handleKey(e.key.toUpperCase()));
+        // Focus input when board is clicked (for mobile)
+        document.getElementById("game").addEventListener("click", focusMobileInput);
+    } else {
+        document.body.addEventListener("keydown", (e) => handleKey(e.key.toUpperCase()));
+    }
+    // Show tutorial on load, but if progress exists, resume
+    if (loadProgress()) {
+        tutorialOverlay.style.display = "none";
+        endGameOverlay.style.display = "none";
+        updateScore(0);
+        gameActive = true;
+        loadPuzzle(currentPuzzleIndex);
+        focusMobileInput();
+    } else {
+        tutorialOverlay.style.display = "flex";
+        endGameOverlay.style.display = "none";
+        gameActive = false;
+    }
 </script>
 </body>
 </html>
